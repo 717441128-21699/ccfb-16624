@@ -1,0 +1,17 @@
+{
+  "name": "balloon-rally",
+  "version": "1.0.0",
+  "private": true,
+  "description": "热气球锦标赛: WebGL2 + TypeScript 热气球比赛游戏",
+  "scripts": {
+    "build": "esbuild src/main.ts --bundle --outfile=dist/bundle.js",
+    "validate": "esbuild test/validate.ts --bundle --platform=node --outfile=dist/validate.js && node dist/validate.js && esbuild test/sanity.ts --bundle --platform=node --outfile=dist/sanity.js && node dist/sanity.js",
+    "typecheck": "tsc --noEmit",
+    "start": "node scripts/serve.js 8000"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.10",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

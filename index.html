@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>热气球锦标赛 · Balloon Rally</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0b1220;
+    font-family: system-ui, "Microsoft YaHei", sans-serif; color: #e8eef7; }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .screen { position: fixed; inset: 0; display: none; z-index: 20; }
+  .screen.visible { display: flex; align-items: center; justify-content: center; }
+
+  /* ---- 赛区选择 ---- */
+  #screen-venue { background: radial-gradient(ellipse at 50% 30%, #1b2c47 0%, #0b1220 70%);
+    flex-direction: column; gap: 28px; padding: 40px; overflow-y: auto; }
+  #screen-venue h1 { font-size: 34px; letter-spacing: 4px; }
+  #screen-venue .sub { color: #8fa3bd; margin-top: -18px; }
+  #venue-list { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+  .venue-card { width: 320px; background: rgba(20,32,52,0.9); border: 1px solid #2b3d5c;
+    border-radius: 14px; padding: 22px; display: flex; flex-direction: column; gap: 10px; }
+  .venue-card h2 { font-size: 22px; }
+  .venue-card .diff { color: #ffd75f; font-size: 13px; }
+  .venue-card p { color: #b9c6da; font-size: 13px; line-height: 1.6; flex: 1; }
+  .venue-card .meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 12px; color: #8fa3bd; }
+  .venue-card .meta span { background: #16233a; padding: 3px 8px; border-radius: 6px; }
+  .venue-card button { background: #2f6fd0; color: #fff; border: 0; border-radius: 8px;
+    padding: 10px; font-size: 15px; cursor: pointer; }
+  .venue-card button:hover { background: #3d80e8; }
+
+  /* ---- HUD ---- */
+  #hud { position: fixed; inset: 0; pointer-events: none; display: none; z-index: 10; }
+  #hud.visible { display: block; }
+  .panel { background: rgba(10,18,32,0.72); border: 1px solid rgba(90,120,170,0.35);
+    border-radius: 10px; padding: 10px 14px; backdrop-filter: blur(4px); }
+  #hud-left { position: absolute; top: 14px; left: 14px; display: flex; flex-direction: column;
+    gap: 6px; min-width: 230px; font-size: 13px; }
+  #hud-left .row { display: flex; justify-content: space-between; gap: 14px; }
+  #hud-left .row span:last-child { font-variant-numeric: tabular-nums; }
+  .bar { height: 6px; background: #1c2a42; border-radius: 3px; overflow: hidden; margin: 2px 0 6px; }
+  .bar > div { height: 100%; border-radius: 3px; transition: width 0.2s; }
+  #hud-fuelbar { background: #7dff8a; }
+  #hud-top { position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 18px; align-items: center; font-size: 14px; }
+  #hud-target-arrow { display: inline-block; color: #ffd75f; font-size: 18px; transition: transform 0.1s linear; }
+  #hud-msg { position: absolute; top: 72px; left: 50%; transform: translateX(-50%);
+    background: rgba(47,111,208,0.9); padding: 8px 18px; border-radius: 8px; font-size: 14px;
+    opacity: 0; transition: opacity 0.3s; max-width: 70%; text-align: center; }
+  #hud-msg.on { opacity: 1; }
+  #hud-controls { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px; pointer-events: auto; }
+  #hud-controls button { background: rgba(20,34,56,0.85); color: #e8eef7;
+    border: 1px solid #3a5174; border-radius: 8px; padding: 10px 14px; font-size: 14px;
+    cursor: pointer; user-select: none; }
+  #hud-controls button:hover { background: #2a4066; }
+  #hud-controls button:active { background: #2f6fd0; }
+  #hud-keys { position: absolute; bottom: 14px; left: 14px; font-size: 11px; color: #7d90ac;
+    line-height: 1.7; }
+  #hud-burn-state { font-size: 13px; }
+
+  /* ---- 风廓线页 ---- */
+  #screen-wind { background: rgba(6,10,18,0.88); flex-direction: column; }
+  #wind-canvas { width: min(860px, 96vw); height: min(620px, 88vh); border-radius: 12px;
+    border: 1px solid #2b3d5c; }
+  #btn-wind-close { position: absolute; top: 18px; right: 22px; background: #2a4066; color: #fff;
+    border: 0; border-radius: 8px; padding: 8px 16px; cursor: pointer; font-size: 14px; }
+
+  /* ---- 成绩页 ---- */
+  #screen-results { background: rgba(6,10,18,0.85); }
+  #res-card { width: min(520px, 92vw); background: #14203a; border: 1px solid #2b3d5c;
+    border-radius: 16px; padding: 30px 34px; display: flex; flex-direction: column; gap: 12px; }
+  #res-status { font-size: 22px; font-weight: 700; }
+  #res-detail { color: #8fa3bd; font-size: 13px; line-height: 1.6; }
+  #res-score { font-size: 56px; font-weight: 800; color: #ffd75f; text-align: center; }
+  #res-score::after { content: ' 分'; font-size: 18px; color: #8fa3bd; }
+  .res-row { display: flex; justify-content: space-between; gap: 20px; font-size: 13px;
+    padding: 7px 0; border-bottom: 1px dashed #24344f; }
+  .res-row span:first-child { color: #8fa3bd; }
+  .res-row span:last-child { text-align: right; }
+  #res-btns { display: flex; gap: 12px; margin-top: 8px; }
+  #res-btns button { flex: 1; padding: 11px; border: 0; border-radius: 8px; font-size: 15px; cursor: pointer; }
+  #btn-again { background: #2f6fd0; color: #fff; }
+  #btn-venues { background: #24344f; color: #e8eef7; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<!-- 赛区选择页 -->
+<div id="screen-venue" class="screen">
+  <h1>🎈 热气球锦标赛</h1>
+  <div class="sub">气球不能转向 —— 找到合适高度的风, 飘到目标上空, 投下标志袋</div>
+  <div id="venue-list"></div>
+  <div class="sub" style="font-size:12px">理想气体浮力模型 · 分层风廓线 · 逆温层 · 燃料与续航按飞行手册经验值标定</div>
+</div>
+
+<!-- 飞行 HUD -->
+<div id="hud">
+  <div id="hud-left" class="panel">
+    <div class="row"><span>海拔</span><span id="hud-alt">—</span></div>
+    <div class="row"><span>升降率</span><span id="hud-vario">—</span></div>
+    <div class="row"><span>球内温度</span><span id="hud-temp">—</span></div>
+    <div class="bar"><div id="hud-tempbar"></div></div>
+    <div class="row"><span>燃料</span><span id="hud-fuel">—</span></div>
+    <div class="bar"><div id="hud-fuelbar"></div></div>
+    <div class="row"><span>当前高度风</span><span id="hud-wind">—</span></div>
+    <div class="row"><span>目标</span><span id="hud-dist">—</span></div>
+    <div class="row"><span>状态</span><span id="hud-burn-state">—</span></div>
+  </div>
+  <div id="hud-top" class="panel">
+    <span>⏱ <b id="hud-time">—</b></span>
+    <span id="hud-pibal"></span>
+    <span id="hud-marker"></span>
+    <span><span id="hud-target-arrow">⬆</span> 目标</span>
+    <span>倍速 <b id="hud-speed">×1</b></span>
+  </div>
+  <div id="hud-msg"></div>
+  <div id="hud-controls">
+    <button id="btn-burn">🔥 燃烧 (↑)</button>
+    <button id="btn-vent">🕳 放气 (↓)</button>
+    <button id="btn-pibal">🎈 测风球 (P)</button>
+    <button id="btn-drop">🎯 投袋 (空格)</button>
+    <button id="btn-wind">📊 风廓线 (T)</button>
+    <button id="btn-t1">×1</button>
+    <button id="btn-t2">×4</button>
+    <button id="btn-t3">×8</button>
+  </div>
+  <div id="hud-keys" class="panel">
+    ↑ 燃烧器 · ↓ 放气阀 · ←/→ 旋转视角 · 拖拽/滚轮 视角<br>
+    P 放测风气球 · 空格 投标志袋 · T 风廓线分析 · 1/2/3 时间倍速
+  </div>
+</div>
+
+<!-- 风廓线分析页 -->
+<div id="screen-wind" class="screen">
+  <canvas id="wind-canvas" width="860" height="620"></canvas>
+  <button id="btn-wind-close">返回飞行 (T)</button>
+</div>
+
+<!-- 比赛成绩页 -->
+<div id="screen-results" class="screen">
+  <div id="res-card">
+    <div id="res-status"></div>
+    <div id="res-detail"></div>
+    <div id="res-score"></div>
+    <div id="res-rows"></div>
+    <div id="res-btns">
+      <button id="btn-again">↻ 再飞一次</button>
+      <button id="btn-venues">返回赛区选择</button>
+    </div>
+  </div>
+</div>
+
+<script src="dist/bundle.js"></script>
+</body>
+</html>
